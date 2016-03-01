@@ -1,0 +1,5 @@
+__pycache__
+*.pyc
+
+data/*/input
+data/*/training.npz
