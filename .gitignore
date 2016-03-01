@@ -3,3 +3,8 @@ __pycache__
 
 data/*/input
 data/*/training.npz
+data/*/classifier.pickle
+*.egg-info
+data/*/perpixel
+data/*/superpixel
+data/*/masks

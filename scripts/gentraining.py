@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate training data
+Generate training data.
 
 Usage:
-    gentraining.py <datadir> <outputnpz>
+    gentraining.py <datadir>
 
 """
 import os
@@ -14,6 +14,8 @@ import dtcwt
 import imageio
 import numpy as np
 import skimage.transform as sktrans
+
+import mlmask
 
 class ReservoirSampler(object):
     """A simple reservoir sampler which will sample k items uniformly from a
@@ -56,7 +58,7 @@ def resize(image, shape):
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
-    output_fn = opts['<outputnpz>']
+    output_fn = os.path.join(datadir, 'training.npz')
 
     training_size = 1000000
     foreground_training = ReservoirSampler(training_size)
@@ -91,28 +93,8 @@ def main():
         foreground_mask = trimap_im > 224
         background_mask = trimap_im < 32
 
-        # Compute DTCWT for each channel
-        feature_vector = []
-        for c_idx in range(input_im.shape[2]):
-            print('Transforming channel {}/{}'.format(
-                c_idx+1, input_im.shape[2]))
-            input_chan = input_im[..., c_idx].astype(np.float32)
-            input_chan /= 255.0
-            input_chan = np.asarray(input_chan)
-            input_dtcwt = transform.forward(input_chan, nlevels=6)
-
-            # We re-scale each channel of the DTCWT to the input image size. We
-            # take the maximum absolute value along each direction.
-            feature_vector.append(resize(
-                input_dtcwt.lowpass, input_chan.shape))
-
-            # For each highpass...
-            for hp in input_dtcwt.highpasses:
-                feature_vector.append(resize(
-                    np.max(np.abs(hp), axis=-1), input_chan.shape))
-
-        # Stack feature vector up
-        feature_vector = np.dstack(feature_vector)
+        feature_vector = mlmask.image_to_features(input_im,
+            transform=transform, nlevels=6)
 
         # Reshape to have one feature vector per row
         feature_vector = feature_vector.reshape((-1, feature_vector.shape[-1]))

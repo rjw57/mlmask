@@ -1,7 +1,0 @@
-numpy
-scipy
-dtcwt
-docopt
-imageio
-scikit-image
-scikit-learn
