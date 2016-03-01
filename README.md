@@ -8,7 +8,7 @@ example, to select every 10th image from the bell dataset:
 ```bash
 for fn in $(ls data/bell/input/*.JPG | sed -n '0~10p'); do
   echo $fn
-  convert $fn -colorspace gray $(dirname $fn)/../trimap/$(basename $fn .JPG).png
+  convert $fn $(dirname $fn)/../trimap/$(basename $fn .JPG).png
 done
 ```
 

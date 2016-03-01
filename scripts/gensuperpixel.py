@@ -26,6 +26,15 @@ def marker_segment(image):
     gradient = skimfilt.rank.gradient(denoised, skimmorph.disk(2))
     return skimseg.random_walker(image, markers, multichannel=True)
 
+def ws_segment(image):
+    # Operate in luminosity space
+    luminance = skimcolor.rgb2gray(image.astype(np.uint8))
+    denoised = skimfilt.rank.median(luminance, skimmorph.disk(2))
+    markers = skimfilt.rank.gradient(denoised, skimmorph.disk(5)) < 10
+    markers = ndi.label(markers)[0]
+    gradient = skimfilt.rank.gradient(denoised, skimmorph.disk(2))
+    return skimmorph.watershed(gradient, markers)
+
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
@@ -35,15 +44,24 @@ def main():
         os.makedirs(outputdir)
 
     for input_fn in glob.glob(os.path.join(datadir, 'input', '*.JPG')):
-        print('Input: ' + input_fn)
-        input_im = imageio.imread(input_fn)
         input_base = os.path.join(outputdir,
             os.path.splitext(os.path.basename(input_fn))[0])
+        if os.path.isfile(input_base + '.npz'):
+            print('Skipping since {} exists'.format(input_base))
+            continue
+
+        print('Input: ' + input_fn)
+        input_im = imageio.imread(input_fn)
 
         # Compute over segmentation
-        print('Segmenting...')
-        labels = skimseg.slic(input_im, sigma=1,
+        #print('Segmenting (quickshift)...')
+        #qs_labels = skimseg.quickshift(input_im, sigma=1, convert2lab=True)
+        print('Segmenting (slic)...')
+        slic_labels = skimseg.slic(input_im, sigma=1,
             multichannel=True, convert2lab=True)
+
+        labels = slic_labels
+        #labels = skimseg.joint_segmentations(slic_labels, qs_labels)
 
         print('Saving output...')
 

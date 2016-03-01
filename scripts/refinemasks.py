@@ -23,6 +23,7 @@ import mlmask
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
+    vote_threshold = 0.8
 
     outputdir = os.path.join(datadir, 'masks')
     if not os.path.isdir(outputdir):
@@ -30,6 +31,10 @@ def main():
 
     for input_fn in glob.glob(os.path.join(datadir, 'input', '*.JPG')):
         input_base = os.path.splitext(os.path.basename(input_fn))[0]
+        output_base = os.path.join(outputdir, input_base)
+        if os.path.exists(output_base + '.png'):
+            print('Skipping {}'.format(output_base))
+            continue
 
         # Input files
         mask_fn = os.path.join(datadir, 'perpixel', input_base + '.png')
@@ -59,7 +64,7 @@ def main():
 
             fg_vote = np.count_nonzero(pp_vals)
             vote = fg_vote / pp_vals.shape[0]
-            if vote > 0.5:
+            if vote > vote_threshold:
                 vote_mask[labels == label] = 1
             voting[labels == label] = vote
 
@@ -76,7 +81,6 @@ def main():
         mask = np.where(component_labels == largest_label, 1, 0)
 
         print('Saving mask')
-        output_base = os.path.join(outputdir, input_base)
         imageio.imwrite(output_base + '.png',
             np.where(mask == 0, 0, 255).astype(np.uint8))
 
