@@ -1,3 +1,10 @@
+# Guided Masking for Photogrammetry
+
+**Experimental**
+
+This repo contains some experimental code for a machine-learning approach to
+photomasking for photogrammetry.
+
 ## Data preparation
 
 ### Selecting training images
@@ -11,5 +18,4 @@ for fn in $(ls data/bell/input/*.JPG | sed -n '0~10p'); do
   convert $fn $(dirname $fn)/../trimap/$(basename $fn .JPG).png
 done
 ```
-
 
