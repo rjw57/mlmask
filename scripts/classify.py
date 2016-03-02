@@ -34,6 +34,13 @@ def main():
     transform = dtcwt.Transform2d()
 
     for input_fn in glob.glob(os.path.join(datadir, 'input', '*.JPG')):
+        mask_base = os.path.join(outputdir,
+            os.path.splitext(os.path.basename(input_fn))[0])
+        mask_fn = mask_base + '.png'
+        if os.path.isfile(mask_fn):
+            print('Skipping since {} already exists'.format(mask_fn))
+            continue
+
         print('Input: ' + input_fn)
         input_im = imageio.imread(input_fn)
         feature_vector = mlmask.image_to_features(input_im,
@@ -44,9 +51,6 @@ def main():
         mask_pred = classifier.predict(feature_vector)
         mask_pred = mask_pred.reshape(input_im.shape[:2]).astype(np.int)
 
-        mask_base = os.path.join(outputdir,
-            os.path.splitext(os.path.basename(input_fn))[0])
-        mask_fn = mask_base + '.png'
         print('Writing mask to: {}'.format(mask_fn))
 
         imageio.imwrite(mask_fn,
