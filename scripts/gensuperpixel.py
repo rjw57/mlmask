@@ -57,8 +57,10 @@ def main():
         #print('Segmenting (quickshift)...')
         #qs_labels = skimseg.quickshift(input_im, sigma=1, convert2lab=True)
         print('Segmenting (slic)...')
+        # The enforce connectivity is important otherwise superpixels may be
+        # spread over image.
         slic_labels = skimseg.slic(input_im, sigma=1,
-            multichannel=True, convert2lab=True)
+            multichannel=True, convert2lab=True, enforce_connectivity=True)
 
         labels = slic_labels
         #labels = skimseg.joint_segmentations(slic_labels, qs_labels)

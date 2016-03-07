@@ -23,7 +23,7 @@ import mlmask
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
-    vote_threshold = 0.8
+    vote_threshold = 0.5
 
     outputdir = os.path.join(datadir, 'masks')
     if not os.path.isdir(outputdir):
@@ -54,19 +54,12 @@ def main():
         pp_mask = np.where(imageio.imread(mask_fn) > 128, 1, 0)
 
         # Assign mask based on region voting
-        labels = skseg.relabel_sequential(labels)[0]
-        vote_mask = np.zeros_like(pp_mask)
+        vote_mask = np.zeros(pp_mask.shape)
         voting = np.zeros(pp_mask.shape)
-        for label in range(labels.max()):
-            pp_vals = pp_mask[labels == label]
-            if pp_vals.shape[0] == 0:
-                continue
-
-            fg_vote = np.count_nonzero(pp_vals)
-            vote = fg_vote / pp_vals.shape[0]
-            if vote > vote_threshold:
-                vote_mask[labels == label] = 1
-            voting[labels == label] = vote
+        for props in skmeas.regionprops(labels, pp_mask):
+            vote = props.mean_intensity
+            vote_mask[labels == props.label] = 1 if vote > vote_threshold else 0
+            voting[labels == props.label] = vote
 
         # Choose largest connected component as mask
         component_labels = skmeas.label(vote_mask)
