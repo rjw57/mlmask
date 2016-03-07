@@ -58,8 +58,14 @@ def main():
         voting = np.zeros(pp_mask.shape)
         for props in skmeas.regionprops(labels, pp_mask):
             vote = props.mean_intensity
-            vote_mask[labels == props.label] = 1 if vote > vote_threshold else 0
-            voting[labels == props.label] = vote
+            coords = props.coords
+
+            vote_outcome = 1 if vote > vote_threshold else 0
+            vote_mask[coords[:, 0], coords[:, 1]] = vote_outcome
+            voting[coords[:, 0], coords[:, 1]] = vote
+
+            #vote_mask[labels == props.label] = 1 if vote > vote_threshold else 0
+            #voting[labels == props.label] = vote
 
         # Choose largest connected component as mask
         component_labels = skmeas.label(vote_mask)

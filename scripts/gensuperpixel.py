@@ -6,6 +6,8 @@ Usage:
     gensuperpixel.py <datadir>
 
 """
+from __future__ import division
+
 import glob
 import os
 
@@ -15,25 +17,29 @@ import numpy as np
 import scipy.ndimage as ndi
 import skimage.color as skimcolor
 import skimage.filters as skimfilt
+import skimage.feature as skimfeat
 import skimage.morphology as skimmorph
+import skimage.measure as skimmeas
 import skimage.segmentation as skimseg
 
-def marker_segment(image):
-    luminance = skimcolor.rgb2gray(image.astype(np.float32) / 255)
-    denoised = skimfilt.rank.median(luminance, skimmorph.disk(2))
-    markers = skimfilt.rank.gradient(denoised, skimmorph.disk(5)) < 10
-    markers = ndi.label(markers)[0]
-    gradient = skimfilt.rank.gradient(denoised, skimmorph.disk(2))
-    return skimseg.random_walker(image, markers, multichannel=True)
+def ws_segment(image, sigma=0):
+    image = image[..., 0]
+    if sigma > 0:
+        image = skimfilt.gaussian_filter(image, sigma=sigma)
 
-def ws_segment(image):
-    # Operate in luminosity space
-    luminance = skimcolor.rgb2gray(image.astype(np.uint8))
-    denoised = skimfilt.rank.median(luminance, skimmorph.disk(2))
-    markers = skimfilt.rank.gradient(denoised, skimmorph.disk(5)) < 10
-    markers = ndi.label(markers)[0]
-    gradient = skimfilt.rank.gradient(denoised, skimmorph.disk(2))
+    image = np.clip(image, 0, 255).astype(np.uint8)
+    image = skimfilt.rank.median(image, skimmorph.disk(2))
+    markers = skimfilt.rank.gradient(image, skimmorph.disk(5)) < 10
+    gradient = skimfilt.rank.gradient(image, skimmorph.disk(2))
+    #gradient = skimfilt.sobel(image)
+    #markers = skimmeas.label(gradient < 3)
     return skimmorph.watershed(gradient, markers)
+
+def edge_segment(image):
+    image = image.astype(np.float32) / image.max()
+    edges = skimfeat.canny(image)
+    filled = ndi.binary_fill_holes(edges)
+    return skimmeas.label(filled)
 
 def main():
     opts = docopt.docopt(__doc__)
@@ -53,17 +59,40 @@ def main():
         print('Input: ' + input_fn)
         input_im = imageio.imread(input_fn)
 
-        # Compute over segmentation
-        #print('Segmenting (quickshift)...')
-        #qs_labels = skimseg.quickshift(input_im, sigma=1, convert2lab=True)
-        print('Segmenting (slic)...')
-        # The enforce connectivity is important otherwise superpixels may be
-        # spread over image.
-        slic_labels = skimseg.slic(input_im, sigma=1,
-            multichannel=True, convert2lab=True, enforce_connectivity=True)
+        print('Converting to LAB colorspace')
+        lab_im = skimcolor.rgb2lab(input_im)
 
-        labels = slic_labels
-        #labels = skimseg.joint_segmentations(slic_labels, qs_labels)
+        # Compute over segmentation
+
+        #print('Segmenting (Sobel + watershed)...')
+        #ws_labels = ws_segment(lab_im)
+
+        #print('Segmenting (Felsenszwalb)')
+        #fb_labels = skimseg.felzenszwalb(lab_im[..., 0])
+
+        #print('Segmenting (quickshift)')
+        #qs_labels = skimseg.quickshift(lab_im, convert2lab=False)
+
+        print('Segmenting (edges)...')
+        edge_labels = edge_segment(lab_im[..., 0])
+
+        print('Segmenting (slic)...')
+        # Set number of segments so each segment is roughly seg_size*seg_size in area
+        seg_size = 64
+        n_segments = 1 + int(input_im.shape[0] * input_im.shape[1] /
+                (seg_size*seg_size))
+        slic_labels = skimseg.slic(lab_im, n_segments=n_segments,
+            compactness=0.1, multichannel=True, convert2lab=False,
+            slic_zero=True)
+
+        labels = edge_labels
+        #labels = slic_labels
+        labels = skimseg.join_segmentations(slic_labels, edge_labels)
+
+        # Enforce connectivity. This is important otherwise superpixels may be
+        # spread over image.
+        print('Enforcing connectivity')
+        labels = skimmeas.label(labels)
 
         print('Saving output...')
 
