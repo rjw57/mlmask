@@ -8,3 +8,6 @@ data/*/classifier.pickle
 data/*/perpixel
 data/*/superpixel
 data/*/masks
+data/*/features
+data/*/trimap/*_modified.png
+data/*/trimap/*_vis.jpg

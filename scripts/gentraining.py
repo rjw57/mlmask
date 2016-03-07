@@ -13,6 +13,7 @@ import docopt
 import dtcwt
 import imageio
 import numpy as np
+import skimage.measure as skmeas
 import skimage.transform as sktrans
 
 import mlmask
@@ -67,15 +68,17 @@ def main():
     transform = dtcwt.Transform2d()
 
     for input_fn in glob.glob(os.path.join(datadir, 'input', '*.JPG')):
-        trimap_fn = os.path.join(
-            datadir, 'trimap',
-            os.path.splitext(os.path.basename(input_fn))[0] + '.png'
-        )
+        input_base = os.path.splitext(os.path.basename(input_fn))[0]
+        trimap_fn = os.path.join(datadir, 'trimap', input_base + '.png')
         if not os.path.isfile(trimap_fn):
+            continue
+        superpixel_fn = os.path.join(datadir, 'superpixel', input_base + '.npz')
+        if not os.path.isfile(superpixel_fn):
             continue
 
         print('Input: ' + input_fn)
         print('Trimap: ' + trimap_fn)
+        print('Superpixel: ' + superpixel_fn)
 
         input_im = imageio.imread(input_fn)
         trimap_im = imageio.imread(trimap_fn)
@@ -88,10 +91,42 @@ def main():
         assert len(input_im.shape) == 3
         assert input_im.shape[2] == 3
 
+        sp_labels = np.load(superpixel_fn)['labels']
+
+        # Modify trimap with superpixels
+        modified_trimap = np.copy(trimap_im)
+        for props in skmeas.regionprops(sp_labels, trimap_im):
+            trimap_pxs = trimap_im[sp_labels == props.label]
+            n_pxs = trimap_pxs.shape[0]
+            n_fg = np.count_nonzero(trimap_pxs > 224)
+            n_bg = np.count_nonzero(trimap_pxs < 32)
+
+            # Only extend non-equivocal regions with > 10% labels
+            if n_bg == 0 and n_fg * 10 >= n_pxs:
+                modified_trimap[sp_labels == props.label] = 255
+            elif n_fg == 0 and n_bg * 10 >= n_pxs:
+                modified_trimap[sp_labels == props.label] = 0
+
+        # Write modified trimap for inspection
+        modified_trimap_fn = os.path.join(datadir, 'trimap',
+            input_base + '_modified.png')
+        print('Writing: {}'.format(modified_trimap_fn))
+        imageio.imwrite(modified_trimap_fn, modified_trimap)
+
+        modified_trimap_vis_fn = os.path.join(datadir, 'trimap',
+            input_base + '_modified_vis.jpg')
+        imageio.imwrite(modified_trimap_vis_fn,
+            mlmask.visualise_trimap(input_im, modified_trimap))
+
+        trimap_vis_fn = os.path.join(datadir, 'trimap',
+            input_base + '_vis.jpg')
+        imageio.imwrite(trimap_vis_fn,
+            mlmask.visualise_trimap(input_im, trimap_im))
+
         # Extract indices of +ve and -ve training samples
-        trimap_im = trimap_im.reshape((-1,))
-        foreground_mask = trimap_im > 224
-        background_mask = trimap_im < 32
+        modified_trimap = modified_trimap.reshape((-1,))
+        foreground_mask = modified_trimap > 224
+        background_mask = modified_trimap < 32
 
         feature_vector = mlmask.image_to_features(input_im,
             transform=transform, nlevels=6)

@@ -22,6 +22,26 @@ def visualise_mask(image, mask):
             alpha*mask_color[c_idx] + (1.0-alpha)*output[..., c_idx])
     return output
 
+def visualise_trimap(image, trimap, bg_threshold=32, fg_threshold=224):
+    output = skseg.mark_boundaries(image, trimap)
+    rng = output.max()
+    alpha = 0.75
+    bg_mask_color = [0.5, 0, 0]
+    fg_mask_color = [0, 0.5, 0]
+    other_mask_color = [0, 0, 0.5]
+    for c_idx in range(output.shape[2]):
+        output[..., c_idx] = np.where(trimap > fg_threshold,
+            alpha*fg_mask_color[c_idx] + (1.0-alpha)*output[..., c_idx],
+            output[..., c_idx])
+        output[..., c_idx] = np.where(trimap < bg_threshold,
+            alpha*bg_mask_color[c_idx] + (1.0-alpha)*output[..., c_idx],
+            output[..., c_idx])
+        output[..., c_idx] = np.where(
+            np.logical_and(trimap >= bg_threshold, trimap <= fg_threshold),
+            alpha*other_mask_color[c_idx] + (1.0-alpha)*output[..., c_idx],
+            output[..., c_idx])
+    return output
+
 def image_to_features(image, nlevels=6, transform=None):
     """Feature vectors are stacked such that the first 1/3 are the first
     channel, next 1/3 are second, etc.
