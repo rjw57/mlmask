@@ -96,16 +96,18 @@ def main():
         # Modify trimap with superpixels
         modified_trimap = np.copy(trimap_im)
         for props in skmeas.regionprops(sp_labels, trimap_im):
-            trimap_pxs = trimap_im[sp_labels == props.label]
+            coords = props.coords
+            rows, cols = coords[:, 0], coords[:, 1]
+            trimap_pxs = trimap_im[rows, cols]
             n_pxs = trimap_pxs.shape[0]
             n_fg = np.count_nonzero(trimap_pxs > 224)
             n_bg = np.count_nonzero(trimap_pxs < 32)
 
             # Only extend non-equivocal regions with > 10% labels
             if n_bg == 0 and n_fg * 10 >= n_pxs:
-                modified_trimap[sp_labels == props.label] = 255
+                modified_trimap[rows, cols] = 255
             elif n_fg == 0 and n_bg * 10 >= n_pxs:
-                modified_trimap[sp_labels == props.label] = 0
+                modified_trimap[rows, cols] = 0
 
         # Write modified trimap for inspection
         modified_trimap_fn = os.path.join(datadir, 'trimap',
