@@ -9,7 +9,7 @@ import skimage.transform as sktrans
 def _resize(image, shape):
     """Resize an input array."""
     sc = np.abs(image).max()
-    return sktrans.resize(image / sc, shape, mode='reflect') * sc
+    return sktrans.resize(image / sc, shape, mode='reflect', order=3) * sc
 
 def visualise_mask(image, mask):
     output = skseg.mark_boundaries(image, mask)
@@ -23,6 +23,10 @@ def visualise_mask(image, mask):
     return output
 
 def image_to_features(image, nlevels=6, transform=None):
+    """Feature vectors are stacked such that the first 1/3 are the first
+    channel, next 1/3 are second, etc.
+
+    """
     assert len(image.shape) == 3
     assert image.shape[2] == 3
 
