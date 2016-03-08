@@ -61,7 +61,7 @@ def main():
     datadir = opts['<datadir>']
     output_fn = os.path.join(datadir, 'training.npz')
 
-    training_size = 1000000
+    training_size = 10000000
     foreground_training = ReservoirSampler(training_size)
     background_training = ReservoirSampler(training_size)
 
