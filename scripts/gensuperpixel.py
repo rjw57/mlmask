@@ -75,7 +75,7 @@ def main():
         n_segments = 1 + int(input_im.shape[0] * input_im.shape[1] /
             (seg_size*seg_size))
         labels = skimseg.join_segmentations(labels,
-            skimseg.slic(lab_im, n_segments=n_segments,
+            skimseg.slic(lab_im, n_segments=n_segments, sigma=1,
                 compactness=0.1, multichannel=True, convert2lab=False,
                 slic_zero=True)
         )
