@@ -22,13 +22,25 @@ import skimage.morphology as skimmorph
 import skimage.measure as skimmeas
 import skimage.segmentation as skimseg
 
-def ws_segment(image, sigma=2):
+def ws_segment(image, sigma=0):
     if sigma > 0:
         image = skimfilt.gaussian_filter(image, sigma=sigma)
-    edges = skimfilt.sobel(image).astype(np.uint8)
-    edges_lm = skimfilt.rank.minimum(edges, skimmorph.disk(5))
-    markers = np.where(edges == edges_lm,
-        skimmeas.label(edges == edges_lm)+1, 0)
+
+    L = (255 * image.astype(np.float32) / image.max()).astype(np.uint8)
+    denoised = skimfilt.rank.median(L, skimmorph.disk(5))
+
+    edges = np.clip(255 * skimfilt.sobel(denoised), 0, 255).astype(np.uint8)
+    edges_locmin = skimfilt.rank.minimum(edges, skimmorph.disk(5))
+
+    # Start at local minima
+    markers = edges == edges_locmin
+
+    # Remove very small markers
+    markers = skimfilt.rank.median(markers, skimmorph.disk(5))
+
+    # Label markers
+    markers = np.where(markers != 0, skimmeas.label(markers) + 1, 0)
+
     return skimmorph.watershed(edges, markers)
 
 def main():
@@ -52,36 +64,25 @@ def main():
         print('Converting to LAB colorspace')
         lab_im = skimcolor.rgb2lab(input_im)
 
-        # Compute over segmentation
+        labels = np.zeros(input_im.shape[:2])
 
-        #print('Segmenting (Sobel + watershed)...')
-        #ws_labels = ws_segment(lab_im)
-
-        #print('Segmenting (Felsenszwalb)')
-        #fb_labels = skimseg.felzenszwalb(lab_im[..., 0])
-
-        #print('Segmenting (quickshift)')
-        #qs_labels = skimseg.quickshift(lab_im, convert2lab=False)
-
-        print('Segmenting (edges)...')
-        edge_labels = ws_segment(lab_im[..., 0])
+        print('Segmenting (watershed)...')
+        labels = skimseg.join_segmentations(labels, ws_segment(lab_im[..., 0]))
 
         print('Segmenting (slic)...')
         # Set number of segments so each segment is roughly seg_size*seg_size in area
         seg_size = 128
         n_segments = 1 + int(input_im.shape[0] * input_im.shape[1] /
-                (seg_size*seg_size))
-        slic_labels = skimseg.slic(lab_im, n_segments=n_segments,
-            compactness=0.1, multichannel=True, convert2lab=False,
-            slic_zero=True)
+            (seg_size*seg_size))
+        labels = skimseg.join_segmentations(labels,
+            skimseg.slic(lab_im, n_segments=n_segments,
+                compactness=0.1, multichannel=True, convert2lab=False,
+                slic_zero=True)
+        )
 
-        #labels = edge_labels
-        #labels = slic_labels
-        labels = skimseg.join_segmentations(slic_labels, edge_labels)
-
+        print('Enforcing connectivity')
         # Enforce connectivity. This is important otherwise superpixels may be
         # spread over image.
-        print('Enforcing connectivity')
         labels = skimmeas.label(labels)
 
         print('Saving output...')
