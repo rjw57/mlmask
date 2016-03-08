@@ -23,7 +23,7 @@ import mlmask
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
-    vote_threshold = 0.5
+    vote_threshold = 0.8
 
     outputdir = os.path.join(datadir, 'masks')
     if not os.path.isdir(outputdir):
