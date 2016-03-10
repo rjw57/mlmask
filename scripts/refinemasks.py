@@ -23,7 +23,7 @@ import mlmask
 def main():
     opts = docopt.docopt(__doc__)
     datadir = opts['<datadir>']
-    vote_threshold = 0.8
+    vote_threshold = 0.75
 
     outputdir = os.path.join(datadir, 'masks')
     if not os.path.isdir(outputdir):
@@ -54,15 +54,17 @@ def main():
         pp_mask = np.where(imageio.imread(mask_fn) > 128, 1, 0)
 
         # Assign mask based on region voting
-        vote_mask = np.zeros(pp_mask.shape)
+        vote_mask = np.copy(pp_mask)
         voting = np.zeros(pp_mask.shape)
         for props in skmeas.regionprops(labels, pp_mask):
             vote = props.mean_intensity
             coords = props.coords
 
-            vote_outcome = 1 if vote > vote_threshold else 0
-            vote_mask[coords[:, 0], coords[:, 1]] = vote_outcome
             voting[coords[:, 0], coords[:, 1]] = vote
+            if vote > vote_threshold:
+                vote_mask[coords[:, 0], coords[:, 1]] = 1
+            elif vote < 1 - vote_threshold:
+                vote_mask[coords[:, 0], coords[:, 1]] = 0
 
             #vote_mask[labels == props.label] = 1 if vote > vote_threshold else 0
             #voting[labels == props.label] = vote
