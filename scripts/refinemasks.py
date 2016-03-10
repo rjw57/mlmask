@@ -63,7 +63,7 @@ def main():
             voting[coords[:, 0], coords[:, 1]] = vote
             if vote > vote_threshold:
                 vote_mask[coords[:, 0], coords[:, 1]] = 1
-            elif vote < 1 - vote_threshold:
+            else:
                 vote_mask[coords[:, 0], coords[:, 1]] = 0
 
             #vote_mask[labels == props.label] = 1 if vote > vote_threshold else 0
